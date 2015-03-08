@@ -1,0 +1,7 @@
+requires: 
+data/article_categories_en.ttl, 
+data/persondata_en.ttl, 
+data/wikipedia_links_en.ttl, 
+data/short_abstracts_en.ttl
+
+sbt "run data/ data/input.json" 
