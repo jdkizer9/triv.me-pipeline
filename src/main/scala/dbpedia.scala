@@ -223,7 +223,7 @@ object DBPedia {
         }
         ).toMap
 
-        bioMap.foreach(println)
+        //bioMap.foreach(println)
 
         val wikiPageMap = Source.fromFile(dataDirectory + "wikipedia_links_en.ttl").getLines() .
         filter( line => {
@@ -248,7 +248,7 @@ object DBPedia {
         }
         ).toMap
 
-        wikiPageMap.foreach(println)
+        //wikiPageMap.foreach(println)
 
         val outputJsonArray: Array[JsValue] = personDataWithCategoriesAndPageViews.
         map( pair => {
