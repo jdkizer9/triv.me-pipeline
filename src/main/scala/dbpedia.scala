@@ -20,6 +20,13 @@ import scala.concurrent.duration._
 import ExecutionContext.Implicits.global
 import scala.async.Async.{async, await}
 
+import edu.stanford.nlp.pipeline.StanfordCoreNLP
+import edu.stanford.nlp.pipeline.StanfordCoreNLP._
+import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation
+import edu.stanford.nlp.pipeline.Annotation
+
+import java.util.Properties
+
 object DBPedia {
     def main(args: Array[String]) {
         Logger.getLogger("org").setLevel(Level.ERROR)
@@ -39,7 +46,8 @@ object DBPedia {
         //                         "<http://dbpedia.org/resource/Category:American_musicians>",
         //                         "<http://dbpedia.org/resource/Category:American_actors>")
 
-        val selectedCategories = Set("<http://dbpedia.org/resource/Category:American_musicians>")
+        val selectedCategories = Set("<http://dbpedia.org/resource/Category:American_rock_musicians>",
+                                        "<http://dbpedia.org/resource/Category:American_rock_singers>")
 
         val firstPassResources = Source.fromFile(dataDirectory +  "article_categories_en.ttl").getLines().
         filter( line => {
@@ -163,7 +171,7 @@ object DBPedia {
               }
             }
 
-            delay(1 second)
+            delay(500 milliseconds)
 
             try { 
                 val pageViews: HttpResponse[Int] = Http("http://stats.grok.se/json/en/201503/" + name).
@@ -191,7 +199,12 @@ object DBPedia {
             pair1._2._3 < pair2._2._3
         }).
         reverse.
-        take(500)
+        take(100)
+
+        //Properties props = new Properties();
+        val props = new Properties()
+        props.setProperty("annotators", "ssplit")
+        val pipeline = new StanfordCoreNLP(props)
 
         val (finalResources, rest) = personDataWithCategoriesAndPageViews.unzip
         val finalResourcesSet = finalResources.toSet
@@ -214,7 +227,12 @@ object DBPedia {
                     substring(1, abstractWithoutQuotes.length-1)
 
                     //(resource.toString, abstractString.toString.replace(".", ""))
-                    (resource.toString, abstractString.toString)
+                    //(resource.toString, abstractString.toString)
+                    val document = new Annotation(abstractString.toString)
+                    pipeline.annotate(document)
+                    val sentences = document.get(classOf[SentencesAnnotation]).asScala.toList
+                    val newAbstract = sentences.toString
+                    (resource.toString, newAbstract)
                 }
                 case None => (None, None)
             }
@@ -253,6 +271,7 @@ object DBPedia {
         val outputJsonArray: Array[JsValue] = personDataWithCategoriesAndPageViews.
         map( pair => {
 
+            try {
             val dict = JsObject(Seq(
                 "bio" -> JsString(bioMap(pair._1).toString),
                 "name" -> JsString(pair._2._1.toString),
@@ -260,6 +279,9 @@ object DBPedia {
                 "article_url" -> JsString(wikiPageMap(pair._1).toString)
             ))
             dict
+            } catch {
+               case _: Throwable => JsNull
+            }
         }).toArray
 
         val outputJson = JsObject(Seq("input" -> JsArray(outputJsonArray)))
